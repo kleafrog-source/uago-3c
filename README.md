@@ -77,22 +77,22 @@ python main.py путь/к/изображению.png
 ## 📁 Структура проекта
 
 ```
-uago-3c/
-├── project/
-│   ├── src/
-│   │   ├── uago_core.py         # Основной движок
-│   │   ├── symbolic_regressor.py # Генерация формул
-│   │   ├── invariant_measurer.py # Анализ инвариантов
-│   │   └── jsx_visualizer.py    # Визуализация
-│   ├── config/
-│   │   └── uago_config.json     # Конфигурация
-│   ├── data/
-│   │   └── samples/             # Примеры изображений
-│   ├── output/
-│   │   ├── visualizations/      # Сохраненные визуализации
-│   │   └── reports/             # Отчеты анализа
-│   └── main.py                  # Точка входа
-└── README.md
+  uago-3c/
+    ├── src/
+    │   ├── uago_core.py         # Основной движок
+    ├── symbolic_regressor.py # Генерация формул
+    │   ├── invariant_measurer.py # Анализ инвариантов
+    │   └── jsx_visualizer.py    # Визуализация
+    ├── config/
+    │   └── uago_config.json     # Конфигурация
+    ├── data/
+    │   └── samples/             # Примеры изображений
+    ├── output/
+    │   ├── visualizations/      # Сохраненные визуализации
+    │   └── reports/             # Отчеты анализа
+    └── main.py
+      README.md # 
+
 ```
 
 ## 🤝 Вклад
@@ -106,12 +106,12 @@ MIT
 
 ### Где именно используется Mistral API:
 
-1. В файле [symbolic_regressor.py](cci:7://file:///c:/Users/mungo/CascadeProjects/uago-3c/project/symbolic_regressor.py:0:0-0:0) в функции [_generate_with_mistral()](cci:1://file:///c:/Users/mungo/CascadeProjects/uago-3c/project/src/symbolic_regressor.py:40:0-101:18):
+1. В файле [symbolic_regressor.py]/symbolic_regressor.py:0:0-0:0) в функции [_generate_with_mistral()]/src/symbolic_regressor.py:40:0-101:18):
    - Формируется промпт с геометрическими инвариантами
    - Отправляется запрос к API Mistral
    - Обрабатывается ответ и извлекается формула
 
-2. В основном цикле обработки (в [uago_core.py](cci:7://file:///c:/Users/mungo/CascadeProjects/uago-3c/project/uago_core.py:0:0-0:0)) при включенной опции `use_mistral_api`:
+2. В основном цикле обработки (в [uago_core.py](uago_core.py:0:0-0:0)) при включенной опции `use_mistral_api`:
    - Если API ключ указан и доступен, используется Mistral для генерации формул
    - В случае ошибки или отсутствия ключа автоматически переключается на локальную регрессию
 
