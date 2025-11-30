@@ -1,10 +1,11 @@
 """
 Main module for the UAGO-3C engine.
+Implements the three-cycle core: Discovery → Embodiment → Validation.
 """
 import json
 import os
 import time
-from typing import Dict, List, Optional
+from typing import Dict, List
 from pathlib import Path
 import numpy as np
 from PIL import Image
@@ -13,9 +14,10 @@ from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.chrome.service import Service
 from webdriver_manager.chrome import ChromeDriverManager
 
-from src.invariant_measurer import measure_invariants
-from src.symbolic_regressor import generate_formula_from_invariants
-from src.jsx_visualizer import generate_jsx_visualization
+# Correct relative imports (uago_core.py is inside src/)
+from .invariant_measurer import measure_invariants
+from .symbolic_regressor import generate_formula_from_invariants
+from .jsx_visualizer import generate_jsx_visualization
 
 
 class UAGO3CEngine:
@@ -75,28 +77,25 @@ class UAGO3CEngine:
         }
         
         try:
+            # Load the image using PIL and convert to numpy array
+            img = Image.open(image_path)
+            img_array = np.array(img)
+            
+            # Ensure image is in the correct format (H, W) or (H, W, 3)
+            if len(img_array.shape) == 3:
+                if img_array.shape[2] == 4:  # RGBA to RGB
+                    img_array = img_array[..., :3]
+                elif img_array.shape[2] == 1:  # Grayscale with channel
+                    img_array = img_array[..., 0]
+            
             # Cycle 1: Discovery
             print("Cycle 1/3: Discovery - Analyzing image invariants...")
-            
-            # Load the image using PIL and convert to numpy array
-            try:
-                img = Image.open(image_path)
-                img_array = np.array(img)
-                
-                # Ensure image is in the correct format (H, W) or (H, W, 3) or (H, W, 4)
-                if len(img_array.shape) == 3:
-                    if img_array.shape[2] == 4:  # RGBA to RGB
-                        img_array = img_array[..., :3]
-                
-                invariants = measure_invariants(img_array)
-                formula = generate_formula_from_invariants(
-                    invariants,
-                    use_mistral=self.config.get('use_mistral_api', False),
-                    mistral_model=self.config.get('mistral_model', 'mistral-large-latest')
-                )
-            except Exception as e:
-                print(f"Error loading/processing image: {str(e)}")
-                raise
+            invariants = measure_invariants(img_array)
+            formula = generate_formula_from_invariants(
+                invariants,
+                use_mistral=self.config.get('use_mistral_api', False),
+                mistral_model=self.config.get('mistral_model', 'mistral-large-latest')
+            )
             
             result['history'].append({
                 'attempt': 1,
@@ -108,12 +107,22 @@ class UAGO3CEngine:
             max_cycles = self.config.get('max_cycles', 3)
             similarity_threshold = self.config.get('similarity_threshold', 0.95)
             
+            # If only one cycle is requested, skip validation
+            if max_cycles == 1:
+                result['status'] = 'success'
+                result['formula'] = formula
+                result['attempts'] = 1
+                return result
+            
+            current_formula = formula
+            current_invariants = invariants
+            
             for attempt in range(2, max_cycles + 1):
                 # Cycle 2: Embodiment
                 print(f"Cycle {attempt}/3: Embodiment - Generating visualization...")
                 html_content = generate_jsx_visualization(
-                    formula,
-                    invariants,
+                    current_formula,
+                    current_invariants,
                     width=self.config['visualization']['width'],
                     height=self.config['visualization']['height']
                 )
@@ -125,7 +134,7 @@ class UAGO3CEngine:
                 )
                 png_path = html_path.replace('.html', '.png')
                 
-                with open(html_path, 'w') as f:
+                with open(html_path, 'w', encoding='utf-8') as f:
                     f.write(html_content)
                 
                 self._capture_screenshot(html_path, png_path)
@@ -139,8 +148,8 @@ class UAGO3CEngine:
                     mistral_model=self.config.get('mistral_model', 'mistral-large-latest')
                 )
                 
-                # Calculate similarity
-                similarity = self._calculate_formula_similarity(formula, new_formula)
+                # Calculate similarity (now exact string match for canonical formulas)
+                similarity = self._calculate_formula_similarity(current_formula, new_formula)
                 
                 # Update result
                 result['history'].append({
@@ -159,8 +168,8 @@ class UAGO3CEngine:
                     break
                 
                 # Prepare for next iteration
-                formula = new_formula
-                invariants = new_invariants
+                current_formula = new_formula
+                current_invariants = new_invariants
             
             # If we get here without success
             if result['status'] != 'success':
@@ -184,21 +193,13 @@ class UAGO3CEngine:
     def _calculate_formula_similarity(self, formula1: str, formula2: str) -> float:
         """
         Calculate similarity between two formulas.
-        
-        This is a simplified implementation. In a real system, you would want
-        to use a more sophisticated method for comparing mathematical expressions.
+        Since formulas are now canonical (e.g., 'IFS_Sierpinski: ...'),
+        we use exact string matching after normalizing whitespace.
         """
-        # Simple token-based similarity
-        tokens1 = set(formula1.lower().replace(' ', ''))
-        tokens2 = set(formula2.lower().replace(' ', ''))
-        
-        if not tokens1 or not tokens2:
-            return 0.0
-            
-        intersection = len(tokens1.intersection(tokens2))
-        union = len(tokens1.union(tokens2))
-        
-        return intersection / union if union > 0 else 0.0
+        # Normalize: remove extra whitespace and compare
+        norm1 = ' '.join(formula1.split())
+        norm2 = ' '.join(formula2.split())
+        return 1.0 if norm1 == norm2 else 0.0
     
     def __del__(self):
         """Clean up resources."""

@@ -13,6 +13,7 @@ sys.path.append(str(Path(__file__).parent / 'src'))
 
 from uago_core import UAGO3CEngine
 
+
 def main():
     # Check command line arguments
     if len(sys.argv) != 2:
@@ -39,8 +40,8 @@ def main():
         timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
         report_path = os.path.join('output', 'reports', f'result_{timestamp}.json')
         
-        with open(report_path, 'w') as f:
-            json.dump(result, f, indent=2)
+        with open(report_path, 'w', encoding='utf-8') as f:
+            json.dump(result, f, indent=2, ensure_ascii=False)
         
         print(f"\nAnalysis complete! Report saved to: {report_path}")
         print(f"Status: {result['status'].upper()}")
@@ -50,12 +51,15 @@ def main():
         
         # Also update the latest.json
         latest_path = os.path.join('output', 'reports', 'latest.json')
-        with open(latest_path, 'w') as f:
-            json.dump(result, f, indent=2)
+        with open(latest_path, 'w', encoding='utf-8') as f:
+            json.dump(result, f, indent=2, ensure_ascii=False)
             
     except Exception as e:
         print(f"Error during execution: {str(e)}")
+        import traceback
+        traceback.print_exc()
         sys.exit(1)
+
 
 if __name__ == "__main__":
     main()
