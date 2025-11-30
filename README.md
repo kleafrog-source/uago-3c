@@ -73,6 +73,7 @@ pip install -r requirements.txt
 ---
 
 ## 🏃‍♂️ Usage / Использование
+<<<<<<< HEAD
 
 ```bash
 python main.py path/to/your/image.jpg
@@ -121,10 +122,44 @@ uago-3c/
     │   └── reports/             # Отчеты анализа
     └── main.py
       README.md # 
+=======
+>>>>>>> 1693ef006d2f9b98291896ed83087e270c7f7a9f
 
+```bash
+python main.py path/to/your/image.jpg
 ```
 >>>>>>> 9339d94a743389ba7949af3a5297195502da8c0e
 
+<<<<<<< HEAD
+=======
+Output:
+- `output/visualizations/attempt_*.html` — interactive visualizations
+- `output/reports/latest.json` — full analysis report
+
+Результат:
+- `output/visualizations/attempt_*.html` — интерактивные визуализации
+- `output/reports/latest.json` — полный отчёт анализа
+
+---
+
+## 📁 Project Structure / Структура проекта
+
+```
+uago-3c/
+├── main.py                  # Entry point
+├── config/uago_config.json  # Configuration
+├── src/
+│   ├── __init__.py
+│   ├── uago_core.py         # Main engine (3-cycle logic)
+│   ├── invariant_measurer.py # Fractal & topological invariants
+│   ├── symbolic_regressor.py # Formula generation (rule-based + Mistral)
+│   └── jsx_visualizer.py    # JSXGraph HTML generator
+├── output/
+│   ├── visualizations/      # Generated HTML files
+│   └── reports/             # JSON analysis reports
+└── requirements.txt
+
+>>>>>>> 1693ef006d2f9b98291896ed83087e270c7f7a9f
 
 
 
@@ -140,6 +175,7 @@ Pull requests and bug reports are welcome.
 
 MIT
 
+<<<<<<< HEAD
 
 <<<<<<< HEAD
 
@@ -158,3 +194,7 @@ MIT
    - Выбором модели Mistral
    - Настройками таймаутов и других параметров запроса
 >>>>>>> 9339d94a743389ba7949af3a5297195502da8c0e
+=======
+git commit -m "Initial commit: Add UAGO-3C project files"
+
+>>>>>>> 1693ef006d2f9b98291896ed83087e270c7f7a9f
