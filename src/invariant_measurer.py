@@ -68,14 +68,87 @@ def measure_invariants(image_input: Union[str, np.ndarray]) -> Dict:
     # 6. Branching analysis (if applicable)
     branching = _analyze_branching(binary)
 
+    # 7. Fourier-based analysis
+    fourier_invariants = _fourier_analysis(binary)
+
     return {
         "dimensionality": float(dim),
         "scales": [float(s) for s in scales],
         "connectivity": int(connectivity),
         "repetition_score": float(rep_score),
         "symmetry_approx": str(symmetry),
-        "branching": branching
+        "branching": branching,
+        "fourier_D_f": fourier_invariants["fourier_D_f"],
+        "anisotropy_ratio": fourier_invariants["anisotropy_ratio"],
+        "dominant_orientation": fourier_invariants["dominant_orientation"]
     }
+
+def _fourier_analysis(binary_img: np.ndarray) -> Dict:
+    """
+    Performs Fourier-based analysis to find fractal dimension, anisotropy, and orientation.
+    """
+    try:
+        # 1. Compute 2D Power Spectrum
+        f = np.fft.fft2(binary_img.astype(float))
+        fshift = np.fft.fftshift(f)
+        power_spectrum = np.abs(fshift)**2
+
+        # 2. Radially Averaged Power Spectrum for D_f
+        cy, cx = np.array(power_spectrum.shape) / 2
+        y, x = np.indices(power_spectrum.shape)
+        r = np.sqrt((x - cx)**2 + (y - cy)**2)
+        r_int = r.astype(int)
+
+        tbin = np.bincount(r_int.ravel(), power_spectrum.ravel())
+        nr = np.bincount(r_int.ravel())
+
+        # Avoid division by zero
+        radial_profile = np.divide(tbin, nr, out=np.zeros_like(tbin, dtype=float), where=nr!=0)
+
+        # Fit log-log plot to find slope (beta)
+        freqs = np.arange(len(radial_profile))
+        valid_indices = (freqs > 0) & (radial_profile > 0)
+
+        if np.sum(valid_indices) < 2:
+            fourier_D_f = 2.0 # Default for non-fractal
+        else:
+            log_freqs = np.log(freqs[valid_indices])
+            log_profile = np.log(radial_profile[valid_indices])
+            coeffs = np.polyfit(log_freqs, log_profile, 1)
+            beta = -coeffs[0]
+            # D = (2 * embedding_dim + 2 - beta) / 2. Here embedding_dim = 2.
+            fourier_D_f = (6.0 - beta) / 2.0
+
+        # 3. Angular Distribution for Anisotropy
+        angles = np.rad2deg(np.arctan2(y - cy, x - cx))
+        angles[angles < 0] += 180 # Map to [0, 180] due to symmetry
+
+        num_bins = 180
+        angle_bins = angles.astype(int) % num_bins
+
+        angular_dist = np.bincount(angle_bins.ravel(), power_spectrum.ravel())
+
+        if np.sum(angular_dist) == 0:
+             anisotropy_ratio = 0.0
+             dominant_orientation = 0.0
+        else:
+            min_energy = np.min(angular_dist)
+            max_energy = np.max(angular_dist)
+            anisotropy_ratio = (max_energy - min_energy) / max_energy if max_energy > 0 else 0.0
+            dominant_orientation = float(np.argmax(angular_dist))
+
+        return {
+            "fourier_D_f": float(fourier_D_f),
+            "anisotropy_ratio": float(anisotropy_ratio),
+            "dominant_orientation": dominant_orientation
+        }
+
+    except Exception:
+        return {
+            "fourier_D_f": 2.0,
+            "anisotropy_ratio": 0.0,
+            "dominant_orientation": 0.0
+        }
 
 
 def _box_counting_dimension(binary_img: np.ndarray, max_boxes: int = 6) -> float:

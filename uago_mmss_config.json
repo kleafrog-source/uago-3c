@@ -1,0 +1,71 @@
+{
+  "SYNTHESIZED_MMSS_SYSTEM": {
+    "system_id": "UAGO_3C_MMSS_BRIDGE_v1.0",
+    "mode": "fractal_recognition_and_explanation",
+    "use_mistral_api": true,
+    "mistral_model": "mistral-large-latest",
+
+    "MMSS_OBSERVATION_MODE": {
+      "level_0_basic": {
+        "enabled": true,
+        "actions": ["detect_type", "measure_dimension", "render_jsx"]
+      },
+      "level_1_structural": {
+        "enabled": false,
+        "actions": ["extract_grammar", "identify_symmetry_group", "infer_growth_rule"]
+      },
+      "level_2_generative": {
+        "enabled": false,
+        "actions": ["synthesize_grammar", "propose_hybrid_fractal", "optimize_parameters"]
+      }
+    },
+
+    "VISUALIZATION_POLICY": {
+      "engine": "jsxgraph",
+      "fallback_to_ascii": false,
+      "include_formula_in_html": true,
+      "include_mmss_metrics": ["D_f", "V", "S"]
+    },
+
+    "EXPLANATION_POLICY": {
+      "generate_explanation": true,
+      "explanation_depth": "level_0_basic",
+      "prompt_template": "You are a fractal geometry expert. Analyze the following invariants and formula. Provide a concise, insightful explanation of the underlying generative law, its mathematical properties, and real-world manifestations. Keep it under 150 words.\\n\\nInvariants: {invariants}\\nFormula: {formula}",
+      "output_field": "mmss_explanation"
+    },
+
+    "METRICS_FRAMEWORK": {
+      "D_f": {
+        "name": "Fractal Dimension",
+        "target_range": [1.0, 3.0],
+        "critical_thresholds": {
+          "crystal": [1.6, 2.2],
+          "biological": [1.7, 1.95],
+          "fractal": [1.2, 2.8]
+        }
+      },
+      "V": {
+        "name": "Structural Clarity",
+        "formula": "V = 1 - repetition_score * (1 - symmetry_score)",
+        "interpretation": "High V = clear, deterministic rule"
+      },
+      "S": {
+        "name": "Structural Entropy",
+        "formula": "S = 1 - V",
+        "interpretation": "High S = stochastic or noisy pattern"
+      }
+    },
+
+    "ADAPTIVE_BEHAVIOR": {
+      "if_high_S": {
+        "action": "request_higher_resolution_image"
+      },
+      "if_D_f_near_integer": {
+        "action": "suggest_algebraic_description"
+      },
+      "if_Mistral_unavailable": {
+        "action": "fallback_to_rule_based_only"
+      }
+    }
+  }
+}

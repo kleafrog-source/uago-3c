@@ -26,9 +26,27 @@ VISUALIZATION_TEMPLATE = """<!DOCTYPE html>
         <h1>UAGO-3C Visualization</h1>
         <div class="info">
             <p><strong>Formula:</strong> {{ formula }}</p>
-            <p><strong>Dimensionality:</strong> {{ "%.3f"|format(invariants.dimensionality) }}</p>
+            <p><strong>Box-Counting Dim:</strong> {{ "%.3f"|format(invariants.dimensionality) }}</p>
+            {% if 'D_f' in metrics_data %}
+            <p><strong>Fourier Dim (D_f):</strong> {{ "%.3f"|format(metrics_data.D_f) }}</p>
+            {% endif %}
             <p><strong>Symmetry:</strong> {{ invariants.symmetry_approx }}</p>
+            {% if 'V' in metrics_data %}
+            <p><strong>Structural Clarity (V):</strong> {{ "%.3f"|format(metrics_data.V) }}</p>
+            {% endif %}
+            {% if 'S' in metrics_data %}
+            <p><strong>Structural Entropy (S):</strong> {{ "%.3f"|format(metrics_data.S) }}</p>
+            {% endif %}
         </div>
+
+        {% if mmss_explanation %}
+        <div class="explanation">
+            <details>
+                <summary><strong>MMSS Scientific Explanation</strong></summary>
+                <p>{{ mmss_explanation }}</p>
+            </details>
+        </div>
+        {% endif %}
     </div>
 
     <script type="text/javascript" src="https://cdn.jsdelivr.net/npm/jsxgraph@1.7.0/distrib/jsxgraphcore.js"></script>
@@ -50,19 +68,50 @@ VISUALIZATION_TEMPLATE = """<!DOCTYPE html>
 """
 
 
-def generate_jsx_visualization(formula: str, invariants: Dict, width: int = 500, height: int = 500) -> str:
+def generate_jsx_visualization(
+    formula: str,
+    invariants: Dict,
+    width: int = 500,
+    height: int = 500,
+    mmss_explanation: str = "",
+    config: Dict = {}
+) -> str:
     """
     Generate an interactive JSXGraph visualization based on the formula and invariants.
     """
     vis_type = _determine_visualization_type(invariants)
     vis_script = _generate_visualization_script(vis_type, formula, invariants)
+
+    # Determine which MMSS metrics to show based on the config
+    vis_policy = config.get("SYNTHESIZED_MMSS_SYSTEM", {}).get("VISUALIZATION_POLICY", {})
+    metrics_to_show = vis_policy.get("include_mmss_metrics", [])
+
+    # Calculate V and S if needed
+    metrics_data = {}
+    if "D_f" in metrics_to_show:
+        metrics_data["D_f"] = invariants.get("fourier_D_f", invariants.get("dimensionality"))
+    if "V" in metrics_to_show or "S" in metrics_to_show:
+        # Simplified V and S calculation for display
+        rep_score = invariants.get("repetition_score", 0.0)
+        # Placeholder for symmetry_score - using anisotropy as a proxy
+        anisotropy = invariants.get("anisotropy_ratio", 0.0)
+        symmetry_score = 1.0 - anisotropy
+        v_metric = 1.0 - rep_score * (1.0 - symmetry_score)
+        s_metric = 1.0 - v_metric
+        if "V" in metrics_to_show:
+            metrics_data["V"] = v_metric
+        if "S" in metrics_to_show:
+            metrics_data["S"] = s_metric
+
     template = Template(VISUALIZATION_TEMPLATE)
     return template.render(
         width=width,
         height=height,
         formula=formula,
         invariants=invariants,
-        visualization_script=vis_script
+        visualization_script=vis_script,
+        mmss_explanation=mmss_explanation,
+        metrics_data=metrics_data
     )
 
 

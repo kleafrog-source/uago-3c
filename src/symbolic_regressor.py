@@ -146,3 +146,51 @@ def _generate_with_mistral(
         formula = formula[3:-3].strip()
     
     return formula
+
+def _generate_mmss_explanation(
+    invariants: Dict,
+    formula: str,
+    policy: Dict,
+    api_key: Optional[str] = None,
+    model: str = "mistral-large-latest",
+    timeout: int = 15
+) -> str:
+    """
+    Generates a human-readable explanation using a policy-driven prompt.
+    """
+    if not policy.get("generate_explanation", False) or not api_key:
+        return ""
+
+    try:
+        prompt = policy["prompt_template"].format(invariants=json.dumps(invariants, indent=2), formula=formula)
+
+        headers = {
+            "Authorization": f"Bearer {api_key}",
+            "Content-Type": "application/json"
+        }
+
+        payload = {
+            "model": model,
+            "messages": [
+                {"role": "system", "content": "You are a fractal geometry expert providing insightful analysis."},
+                {"role": "user", "content": prompt}
+            ],
+            "temperature": 0.5,
+            "max_tokens": 250
+        }
+
+        response = requests.post(
+            "https://api.mistral.ai/v1/chat/completions",
+            headers=headers,
+            json=payload,
+            timeout=timeout
+        )
+
+        if response.status_code != 200:
+            return f"Error: Mistral API returned status {response.status_code}. {response.text}"
+
+        explanation = response.json()['choices'][0]['message']['content'].strip()
+        return explanation
+
+    except Exception as e:
+        return f"Error generating explanation: {str(e)}"
