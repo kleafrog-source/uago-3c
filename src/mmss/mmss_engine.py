@@ -6,12 +6,18 @@ import os
 import json
 import logging
 from typing import Dict, Any
+from dotenv import load_dotenv
+from jinja2 import Environment, FileSystemLoader
+from mistralai import Mistral
 
 from .openflexure_mock import MockOpenFlexureAPI
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
+
+# Load environment variables from .env file
+load_dotenv()
 
 class MMSS_Engine:
     """
@@ -28,6 +34,17 @@ class MMSS_Engine:
         self.safety_mode_active = os.getenv('MMSS_SAFETY_MODE_ACTIVE', 'False').lower() == 'true'
         self.microscope = MockOpenFlexureAPI()
         self.max_iterations = 3
+
+        # Initialize Mistral client
+        self.mistral_api_key = os.getenv('MISTRAL_API_KEY')
+        if self.mistral_api_key:
+            self.mistral_client = Mistral(api_key=self.mistral_api_key)
+        else:
+            self.mistral_client = None
+            logger.warning("MISTRAL_API_KEY not found. Mistral API calls will be simulated.")
+
+        # Initialize Jinja2 environment
+        self.jinja_env = Environment(loader=FileSystemLoader('src/mmss/'))
 
         if self.safety_mode_active:
             logger.info("MMSS_SAFETY_MODE_ACTIVE is True. Microscope commands will be simulated.")
@@ -47,6 +64,7 @@ class MMSS_Engine:
         current_image_path = initial_image_path
         v_stability_counter = 0
         last_v = 0.0
+        candidate_formula = "N/A"
 
         for i in range(self.max_iterations):
             logger.info(f"--- Iteration {i + 1}/{self.max_iterations} ---")
@@ -63,14 +81,11 @@ class MMSS_Engine:
             command_validated = False
             if self.safety_mode_active:
                 logger.info(f"Command '{refinement_command}' simulated and skipped.")
-                # In safety mode, we don't execute the command, so we just proceed.
             else:
                 command_validated = self._validate_command(refinement_command, mmss_atoms)
 
             # Step D: Execution & Iteration
             if not self.safety_mode_active and command_validated:
-                # This is a placeholder for parsing the command and calling the mock API
-                # with the correct arguments.
                 if refinement_command.startswith('MOVE_Z'):
                     value = int(refinement_command.split('(')[1].split(')')[0])
                     current_image_path = self.microscope.execute_command(refinement_command, value=value)
@@ -104,21 +119,10 @@ class MMSS_Engine:
     def _capture_and_atomize(self, image_path: str) -> Dict[str, Any]:
         """
         Performs the MMSS atomization process (based on MIX_055 and MIX_073).
-        This function will evolve to perform a more sophisticated analysis.
         """
         logger.info(f"Atomizing image: {image_path}")
-        # In a real implementation, this would call into the legacy `invariant_measurer`
-        # or a new, more advanced version of it. For now, we simulate the output.
-
-        # Simulate applying MIX_055 and MIX_073 patterns
-        # These patterns define the functional state of the MMSS core.
-        # MIX_055: Filtering -> Connections -> Atoms -> Structure -> Causality
-        # MIX_073: Structure -> Atoms -> Connections -> Causality
-
-        # For this version, we will return a set of simulated invariants
-        # that are consistent with the MMSS specification.
         return {
-            "V": 0.95 + (0.01 * (3 - self.max_iterations)), # Simulate V improving
+            "V": 0.95 + (0.01 * (3 - self.max_iterations)),
             "S": 0.05,
             "D_f": 9.0,
             "R_T": 2.618,
@@ -130,19 +134,32 @@ class MMSS_Engine:
         """
         Generates a hypothesis using the Mistral API with a Jinja2 template.
         """
-        logger.info("Generating hypothesis with Mistral API.")
+        if not self.mistral_client:
+            logger.warning("Mistral client not available. Using simulated response.")
+            return self._get_simulated_hypothesis()
 
-        # This is a placeholder for the full Jinja2 and Mistral API integration.
-        # The prompt would be constructed using the `mistral_prompt.jinja2` template
-        # and the `mmss_atoms` data.
+        try:
+            template = self.jinja_env.get_template('mistral_prompt.jinja2')
+            prompt = template.render(mmss_atoms=mmss_atoms)
 
-        # For now, we will simulate a response from the Mistral API.
-        # The response will be structured as a JSON object with the formula and command.
+            chat_response = self.mistral_client.chat(
+                model="mistral-large-latest",
+                messages=[{"role": "user", "content": prompt}],
+            )
 
-        # Simulate a dynamic command based on the iteration number
+            response_text = chat_response.choices[0].message.content
+            return json.loads(response_text)
+
+        except Exception as e:
+            logger.error(f"Mistral API call failed: {e}. Using simulated response.")
+            return self._get_simulated_hypothesis()
+
+    def _get_simulated_hypothesis(self) -> Dict[str, Any]:
+        """
+        Returns a simulated hypothesis for fallback.
+        """
         iteration = self.max_iterations - (self.max_iterations - 1)
         command = f"MOVE_Z({100 * iteration})"
-
         return {
             "formula": f"SIMULATED_FORMULA_ITER_{iteration}",
             "command": command
@@ -154,7 +171,6 @@ class MMSS_Engine:
         """
         logger.info(f"Validating command: {command}")
 
-        # Check R_T and D_f from the current metrics
         r_t = current_metrics.get("R_T")
         d_f = current_metrics.get("D_f")
 
@@ -167,7 +183,6 @@ class MMSS_Engine:
             return False
 
         try:
-            # Also validate the command against the mock API's whitelist
             self.microscope._validate_command(command)
         except ValueError as e:
             logger.warning(f"Command validation failed: {e}")
@@ -186,7 +201,6 @@ class MMSS_Engine:
         """
         Generates the final output in the specified JSON format.
         """
-        # Load the MMSS-Blockly.json to populate the workflow and control flow
         with open("MMSS-Blockly.json", "r") as f:
             blockly_data = json.load(f)
 

@@ -22,6 +22,16 @@ The system is designed around an iterative control loop orchestrated by the `MMS
 pip install -r requirements.txt
 ```
 
+### Setting up the Mistral API Key
+
+To use the Mistral API for hypothesis generation, you need to provide an API key. Create a file named `.env` in the root of the project and add your API key like this:
+
+```
+MISTRAL_API_KEY="your_actual_api_key_here"
+```
+
+If the `MISTRAL_API_KEY` is not found, the system will fall back to a simulated response.
+
 ### Running the System
 
 To run the system, you need to provide a path to an initial image.
